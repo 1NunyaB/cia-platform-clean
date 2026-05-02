@@ -45,14 +45,23 @@ export default function HomePage() {
             </button>
           </form>
 
-          <a
-            href="https://buymeacoffee.com/1NunyaB"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-4 inline-flex min-h-11 items-center justify-center rounded-full border border-[#2d7374]/30 bg-white px-6 text-sm font-semibold text-[#2d7374] shadow-sm transition hover:border-[#2d7374] hover:bg-[#eef6f6]"
-          >
-            Support &amp; Message
-          </a>
+          <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <a
+              href="/visitors"
+              className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#2d7374] px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-[#235d5e]"
+            >
+              Continue as Visitor
+            </a>
+
+            <a
+              href="https://buymeacoffee.com/1NunyaB"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#2d7374]/30 bg-white px-6 text-sm font-semibold text-[#2d7374] shadow-sm transition hover:border-[#2d7374] hover:bg-[#eef6f6]"
+            >
+              Support &amp; Message
+            </a>
+</div>
         </section>
 
         <section className="border-t border-[#d7e2e5] py-4">
