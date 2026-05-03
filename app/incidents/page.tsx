@@ -1008,17 +1008,29 @@ export default function IncidentsPage() {
                       </div>
 
                       {item.peopleInvolved.length ? (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {item.peopleInvolved.map((person) => (
-                            <span
-                              key={person.id}
-                              className="rounded-full border border-[#d7e2e5] bg-white px-3 py-1 text-xs font-semibold text-[#31465a]"
-                            >
-                              {person.name} — {person.role}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
+  <div className="mt-3 rounded-2xl border border-[#d7e2e5] bg-white p-3">
+    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#2d7374]">
+      People Involved
+    </p>
+
+    <div className="space-y-2">
+      {item.peopleInvolved.map((person) => (
+        <div
+          key={person.id}
+          className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#f7f9fa] px-3 py-2 text-xs"
+        >
+          <span className="font-semibold text-[#071d35]">
+            {person.name}
+          </span>
+
+          <span className="rounded-full border border-[#d7e2e5] bg-white px-3 py-1 font-semibold text-[#31465a]">
+            {person.role || "Unknown"}
+          </span>
+        </div>
+      ))}
+    </div>
+  </div>
+) : null}
 
                       {item.summary ? (
                         <p className="mt-3 text-sm leading-6 text-[#31465a]">
