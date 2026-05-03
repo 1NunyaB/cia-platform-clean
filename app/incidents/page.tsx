@@ -25,10 +25,14 @@ type IncidentItem = {
   incidentCode: string;
   title: string;
   incidentDate: string;
-  location: string;
-  mapLocation: string;
+
+  placeName: string;
+  city: string;
+  stateRegion: string;
+  postalCode: string;
   country: string;
-  cityState: string;
+  mapLocation: string;
+
   linkedCaseId: string;
   linkedCaseCode: string;
   linkedCaseTitle: string;
@@ -158,6 +162,30 @@ function loadArrayFromStorage<T>(key: string): T[] {
   }
 }
 
+function buildLocationDisplay(item: IncidentItem) {
+  return (
+    [
+      item.placeName,
+      item.city,
+      item.stateRegion,
+      item.postalCode,
+      item.country,
+    ]
+      .filter(Boolean)
+      .join(", ") || "Not Added"
+  );
+}
+
+function buildMapDisplay(item: IncidentItem) {
+  return (
+    item.mapLocation ||
+    [item.city, item.stateRegion, item.postalCode, item.country]
+      .filter(Boolean)
+      .join(", ") ||
+    "No Map Location"
+  );
+}
+
 export default function IncidentsPage() {
   const [cases, setCases] = useState<CaseItem[]>([]);
   const [incidents, setIncidents] = useState<IncidentItem[]>([]);
@@ -165,10 +193,14 @@ export default function IncidentsPage() {
   const [linkedCaseId, setLinkedCaseId] = useState("");
   const [title, setTitle] = useState("");
   const [incidentDate, setIncidentDate] = useState("");
-  const [location, setLocation] = useState("");
-  const [mapLocation, setMapLocation] = useState("");
+
+  const [placeName, setPlaceName] = useState("");
+  const [city, setCity] = useState("");
+  const [stateRegion, setStateRegion] = useState("");
+  const [postalCode, setPostalCode] = useState("");
   const [country, setCountry] = useState("");
-  const [cityState, setCityState] = useState("");
+  const [mapLocation, setMapLocation] = useState("");
+
   const [status, setStatus] = useState<IncidentStatus>("needs_evidence");
   const [timelineTrack, setTimelineTrack] =
     useState<TimelineTrack>("not_ready");
@@ -187,15 +219,25 @@ export default function IncidentsPage() {
 
     setCases(savedCases);
 
-    const normalizedIncidents = savedIncidents.map((item, index) => ({
-      ...item,
-      incidentCode:
-        item.incidentCode || `INC-${String(index + 1).padStart(4, "0")}`,
-      timelineTrack: item.timelineTrack || "not_ready",
-      mapLocation: item.mapLocation || "",
-      country: item.country || "",
-      cityState: item.cityState || "",
-    }));
+    const normalizedIncidents = savedIncidents.map((item, index) => {
+      const oldItem = item as IncidentItem & {
+        location?: string;
+        cityState?: string;
+      };
+
+      return {
+        ...oldItem,
+        incidentCode:
+          oldItem.incidentCode || `INC-${String(index + 1).padStart(4, "0")}`,
+        timelineTrack: oldItem.timelineTrack || "not_ready",
+        placeName: oldItem.placeName || oldItem.location || "",
+        city: oldItem.city || "",
+        stateRegion: oldItem.stateRegion || oldItem.cityState || "",
+        postalCode: oldItem.postalCode || "",
+        country: oldItem.country || "",
+        mapLocation: oldItem.mapLocation || "",
+      };
+    });
 
     setIncidents(normalizedIncidents);
   }, []);
@@ -239,10 +281,14 @@ export default function IncidentsPage() {
       incidentCode: createIncidentCode(incidents),
       title: cleanTitle,
       incidentDate: incidentDate.trim(),
-      location: location.trim(),
-      mapLocation: mapLocation.trim(),
+
+      placeName: placeName.trim(),
+      city: city.trim(),
+      stateRegion: stateRegion.trim(),
+      postalCode: postalCode.trim(),
       country: country.trim(),
-      cityState: cityState.trim(),
+      mapLocation: mapLocation.trim(),
+
       linkedCaseId: selectedCase.id,
       linkedCaseCode: selectedCase.caseCode,
       linkedCaseTitle: selectedCase.title,
@@ -250,7 +296,7 @@ export default function IncidentsPage() {
       timelineTrack,
       peopleInvolved: peopleInvolved.trim(),
       sourceReference: sourceReference.trim(),
-      dojReference: dojReference.trim(),
+      dojReference: dojReference.trim() ? `EFTA${dojReference.trim()}` : "",
       pageNumber: pageNumber.trim(),
       summary: summary.trim(),
       notes: notes.trim(),
@@ -262,10 +308,14 @@ export default function IncidentsPage() {
     setLinkedCaseId("");
     setTitle("");
     setIncidentDate("");
-    setLocation("");
-    setMapLocation("");
+
+    setPlaceName("");
+    setCity("");
+    setStateRegion("");
+    setPostalCode("");
     setCountry("");
-    setCityState("");
+    setMapLocation("");
+
     setStatus("needs_evidence");
     setTimelineTrack("not_ready");
     setPeopleInvolved("");
@@ -348,27 +398,89 @@ export default function IncidentsPage() {
                 />
               </div>
 
+              <div>
+                <label className="text-sm font-semibold text-[#071d35]">
+                  Incident Date
+                </label>
+                <input
+                  value={incidentDate}
+                  onChange={(event) => setIncidentDate(event.target.value)}
+                  placeholder="Exact or approximate date"
+                  className="mt-2 min-h-12 w-full rounded-2xl border border-[#cfdadd] bg-white px-4 text-sm text-[#071d35] outline-none transition placeholder:text-[#7d8c98] focus:border-[#2d7374] focus:ring-4 focus:ring-[#2d7374]/10"
+                />
+              </div>
+
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className="text-sm font-semibold text-[#071d35]">
-                    Incident Date
+                    Street / Place Name
                   </label>
                   <input
-                    value={incidentDate}
-                    onChange={(event) => setIncidentDate(event.target.value)}
-                    placeholder="Exact or approximate date"
+                    value={placeName}
+                    onChange={(event) => setPlaceName(event.target.value)}
+                    placeholder="Example: courthouse, residence, airport, office"
                     className="mt-2 min-h-12 w-full rounded-2xl border border-[#cfdadd] bg-white px-4 text-sm text-[#071d35] outline-none transition placeholder:text-[#7d8c98] focus:border-[#2d7374] focus:ring-4 focus:ring-[#2d7374]/10"
                   />
                 </div>
 
                 <div>
                   <label className="text-sm font-semibold text-[#071d35]">
-                    Location
+                    Map Location Label
                   </label>
                   <input
-                    value={location}
-                    onChange={(event) => setLocation(event.target.value)}
-                    placeholder="City, state, country, or location note"
+                    value={mapLocation}
+                    onChange={(event) => setMapLocation(event.target.value)}
+                    placeholder="Example: Palm Beach, Florida"
+                    className="mt-2 min-h-12 w-full rounded-2xl border border-[#cfdadd] bg-white px-4 text-sm text-[#071d35] outline-none transition placeholder:text-[#7d8c98] focus:border-[#2d7374] focus:ring-4 focus:ring-[#2d7374]/10"
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-4">
+                <div>
+                  <label className="text-sm font-semibold text-[#071d35]">
+                    City
+                  </label>
+                  <input
+                    value={city}
+                    onChange={(event) => setCity(event.target.value)}
+                    placeholder="Example: Palm Beach"
+                    className="mt-2 min-h-12 w-full rounded-2xl border border-[#cfdadd] bg-white px-4 text-sm text-[#071d35] outline-none transition placeholder:text-[#7d8c98] focus:border-[#2d7374] focus:ring-4 focus:ring-[#2d7374]/10"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-[#071d35]">
+                    State / Region
+                  </label>
+                  <input
+                    value={stateRegion}
+                    onChange={(event) => setStateRegion(event.target.value)}
+                    placeholder="Example: Florida"
+                    className="mt-2 min-h-12 w-full rounded-2xl border border-[#cfdadd] bg-white px-4 text-sm text-[#071d35] outline-none transition placeholder:text-[#7d8c98] focus:border-[#2d7374] focus:ring-4 focus:ring-[#2d7374]/10"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-[#071d35]">
+                    Zip / Postal Code
+                  </label>
+                  <input
+                    value={postalCode}
+                    onChange={(event) => setPostalCode(event.target.value)}
+                    placeholder="Example: 33480"
+                    className="mt-2 min-h-12 w-full rounded-2xl border border-[#cfdadd] bg-white px-4 text-sm text-[#071d35] outline-none transition placeholder:text-[#7d8c98] focus:border-[#2d7374] focus:ring-4 focus:ring-[#2d7374]/10"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-[#071d35]">
+                    Country
+                  </label>
+                  <input
+                    value={country}
+                    onChange={(event) => setCountry(event.target.value)}
+                    placeholder="Example: United States"
                     className="mt-2 min-h-12 w-full rounded-2xl border border-[#cfdadd] bg-white px-4 text-sm text-[#071d35] outline-none transition placeholder:text-[#7d8c98] focus:border-[#2d7374] focus:ring-4 focus:ring-[#2d7374]/10"
                   />
                 </div>
@@ -407,44 +519,6 @@ export default function IncidentsPage() {
                       </button>
                     );
                   })}
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-3">
-                <div>
-                  <label className="text-sm font-semibold text-[#071d35]">
-                    Map Location Label
-                  </label>
-                  <input
-                    value={mapLocation}
-                    onChange={(event) => setMapLocation(event.target.value)}
-                    placeholder="Example: Palm Beach, Florida"
-                    className="mt-2 min-h-12 w-full rounded-2xl border border-[#cfdadd] bg-white px-4 text-sm text-[#071d35] outline-none transition placeholder:text-[#7d8c98] focus:border-[#2d7374] focus:ring-4 focus:ring-[#2d7374]/10"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-[#071d35]">
-                    Country
-                  </label>
-                  <input
-                    value={country}
-                    onChange={(event) => setCountry(event.target.value)}
-                    placeholder="Example: United States"
-                    className="mt-2 min-h-12 w-full rounded-2xl border border-[#cfdadd] bg-white px-4 text-sm text-[#071d35] outline-none transition placeholder:text-[#7d8c98] focus:border-[#2d7374] focus:ring-4 focus:ring-[#2d7374]/10"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-[#071d35]">
-                    City / State / Region
-                  </label>
-                  <input
-                    value={cityState}
-                    onChange={(event) => setCityState(event.target.value)}
-                    placeholder="Example: Palm Beach, FL"
-                    className="mt-2 min-h-12 w-full rounded-2xl border border-[#cfdadd] bg-white px-4 text-sm text-[#071d35] outline-none transition placeholder:text-[#7d8c98] focus:border-[#2d7374] focus:ring-4 focus:ring-[#2d7374]/10"
-                  />
                 </div>
               </div>
 
@@ -525,12 +599,29 @@ export default function IncidentsPage() {
                   <label className="text-sm font-semibold text-[#071d35]">
                     DOJ / EFTA Reference
                   </label>
-                  <input
-                    value={dojReference}
-                    onChange={(event) => setDojReference(event.target.value)}
-                    placeholder="EFTA..."
-                    className="mt-2 min-h-12 w-full rounded-2xl border border-[#cfdadd] bg-white px-4 text-sm text-[#071d35] outline-none transition placeholder:text-[#7d8c98] focus:border-[#2d7374] focus:ring-4 focus:ring-[#2d7374]/10"
-                  />
+
+                  <div className="mt-2 flex min-h-12 overflow-hidden rounded-2xl border border-[#cfdadd] bg-white focus-within:border-[#2d7374] focus-within:ring-4 focus-within:ring-[#2d7374]/10">
+                    <span className="flex items-center border-r border-[#cfdadd] bg-[#f7f9fa] px-4 text-sm font-semibold text-[#2d7374]">
+                      EFTA
+                    </span>
+
+                    <input
+                      value={dojReference}
+                      onChange={(event) => {
+                        const cleaned = event.target.value
+                          .replace(/^EFTA[-\s]*/i, "")
+                          .replace(/[^\d]/g, "");
+
+                        setDojReference(cleaned);
+                      }}
+                      placeholder="01334003"
+                      className="min-h-12 flex-1 bg-white px-4 text-sm text-[#071d35] outline-none placeholder:text-[#7d8c98]"
+                    />
+                  </div>
+
+                  <p className="mt-1 text-xs text-[#31465a]">
+                    Saved as EFTA{dojReference || "#######"}.
+                  </p>
                 </div>
 
                 <div>
@@ -653,11 +744,7 @@ export default function IncidentsPage() {
                         </span>
 
                         <span className="rounded-full border border-[#d7e2e5] bg-white px-3 py-1 text-xs font-semibold text-[#31465a]">
-                          Map:{" "}
-                          {item.mapLocation ||
-                            item.cityState ||
-                            item.location ||
-                            "No Map Location"}
+                          Map: {buildMapDisplay(item)}
                         </span>
                       </div>
 
@@ -665,8 +752,9 @@ export default function IncidentsPage() {
                         <div className="rounded-2xl border border-[#d7e2e5] bg-white p-3">
                           Date: {item.incidentDate || "Not Added"}
                         </div>
+
                         <div className="rounded-2xl border border-[#d7e2e5] bg-white p-3">
-                          Location: {item.location || "Not Added"}
+                          Location: {buildLocationDisplay(item)}
                         </div>
                       </div>
 
