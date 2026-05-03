@@ -54,7 +54,7 @@ export default function HomePage() {
             </a>
 
             <a
-              href="https://buymeacoffee.com/1NunyaB"
+              href="https://buymeacoffee.com/NunyaB"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#2d7374]/30 bg-white px-6 text-sm font-semibold text-[#2d7374] shadow-sm transition hover:border-[#2d7374] hover:bg-[#eef6f6]"
