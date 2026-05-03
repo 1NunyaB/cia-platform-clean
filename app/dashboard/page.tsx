@@ -1,5 +1,10 @@
 const dashboardLinks = [
   {
+    title: "Create / View / Work on Cases",
+    description: "Open case files, create new cases, and continue case work.",
+    href: "/cases",
+  },
+  {
     title: "Add Evidence",
     description: "Upload or enter new evidence into the system.",
     href: "/evidence/add",
@@ -19,11 +24,6 @@ const dashboardLinks = [
     description: "Review timelines connected to cases and evidence.",
     href: "/timelines",
   },
-  {
-    title: "Create / View / Work on Cases",
-    description: "Open case files, create new cases, and continue case work.",
-    href: "/cases",
-  },
 ];
 
 export default function DashboardPage() {
@@ -36,7 +36,7 @@ export default function DashboardPage() {
           </a>
 
           <a
-            href="https://buymeacoffee.com/1NunyaB"
+            href="https://buymeacoffee.com/NunyaB"
             target="_blank"
             rel="noopener noreferrer"
             className="rounded-full border border-[#2d7374]/30 bg-white px-5 py-2 text-sm font-semibold text-[#2d7374] shadow-sm transition hover:border-[#2d7374] hover:bg-[#eef6f6]"
