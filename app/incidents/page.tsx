@@ -20,6 +20,23 @@ type IncidentStatus =
 
 type TimelineTrack = "not_ready" | "timeline_1" | "timeline_2" | "timeline_3";
 
+type IncidentPerson = {
+  id: string;
+  name: string;
+  role: string;
+};
+
+type SavedPerson = {
+  id: string;
+  name: string;
+};
+
+type SavedLocationOptions = {
+  cities: string[];
+  states: string[];
+  postalCodes: string[];
+};
+
 type IncidentItem = {
   id: string;
   incidentCode: string;
@@ -38,7 +55,7 @@ type IncidentItem = {
   linkedCaseTitle: string;
   status: IncidentStatus;
   timelineTrack: TimelineTrack;
-  peopleInvolved: string;
+  peopleInvolved: IncidentPerson[];
   sourceReference: string;
   dojReference: string;
   pageNumber: string;
@@ -49,6 +66,24 @@ type IncidentItem = {
 
 const CASES_STORAGE_KEY = "casefile_commons_cases";
 const INCIDENTS_STORAGE_KEY = "casefile_commons_incidents";
+const PEOPLE_STORAGE_KEY = "casefile_commons_people";
+const LOCATION_OPTIONS_STORAGE_KEY = "casefile_commons_location_options";
+
+const roleOptions = [
+  "Unknown",
+  "Accuser",
+  "Victim",
+  "Witness",
+  "Subject",
+  "Associate",
+  "Attorney",
+  "Judge",
+  "Law Enforcement",
+  "Journalist / Commentator",
+  "Investigator",
+  "Organization",
+  "Other",
+];
 
 const statusOptions: {
   value: IncidentStatus;
@@ -134,12 +169,12 @@ function getTimelineOption(track: TimelineTrack) {
   );
 }
 
-function createId() {
+function createId(prefix: string) {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID();
   }
 
-  return `incident_${Date.now()}`;
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 }
 
 function createIncidentCode(existingIncidents: IncidentItem[]) {
@@ -159,6 +194,32 @@ function loadArrayFromStorage<T>(key: string): T[] {
     return Array.isArray(parsed) ? (parsed as T[]) : [];
   } catch {
     return [];
+  }
+}
+
+function loadLocationOptions(): SavedLocationOptions {
+  if (typeof window === "undefined") {
+    return { cities: [], states: [], postalCodes: [] };
+  }
+
+  const saved = window.localStorage.getItem(LOCATION_OPTIONS_STORAGE_KEY);
+
+  if (!saved) {
+    return { cities: [], states: [], postalCodes: [] };
+  }
+
+  try {
+    const parsed = JSON.parse(saved) as Partial<SavedLocationOptions>;
+
+    return {
+      cities: Array.isArray(parsed.cities) ? parsed.cities : [],
+      states: Array.isArray(parsed.states) ? parsed.states : [],
+      postalCodes: Array.isArray(parsed.postalCodes)
+        ? parsed.postalCodes
+        : [],
+    };
+  } catch {
+    return { cities: [], states: [], postalCodes: [] };
   }
 }
 
@@ -186,9 +247,22 @@ function buildMapDisplay(item: IncidentItem) {
   );
 }
 
+function uniqueSorted(values: string[]) {
+  return Array.from(
+    new Set(values.map((value) => value.trim()).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b));
+}
+
 export default function IncidentsPage() {
   const [cases, setCases] = useState<CaseItem[]>([]);
   const [incidents, setIncidents] = useState<IncidentItem[]>([]);
+  const [savedPeople, setSavedPeople] = useState<SavedPerson[]>([]);
+  const [locationOptions, setLocationOptions] =
+    useState<SavedLocationOptions>({
+      cities: [],
+      states: [],
+      postalCodes: [],
+    });
 
   const [linkedCaseId, setLinkedCaseId] = useState("");
   const [title, setTitle] = useState("");
@@ -204,7 +278,11 @@ export default function IncidentsPage() {
   const [status, setStatus] = useState<IncidentStatus>("needs_evidence");
   const [timelineTrack, setTimelineTrack] =
     useState<TimelineTrack>("not_ready");
-  const [peopleInvolved, setPeopleInvolved] = useState("");
+
+  const [personName, setPersonName] = useState("");
+  const [personRole, setPersonRole] = useState("Unknown");
+  const [selectedPeople, setSelectedPeople] = useState<IncidentPerson[]>([]);
+
   const [sourceReference, setSourceReference] = useState("");
   const [dojReference, setDojReference] = useState("");
   const [pageNumber, setPageNumber] = useState("");
@@ -216,14 +294,31 @@ export default function IncidentsPage() {
     const savedCases = loadArrayFromStorage<CaseItem>(CASES_STORAGE_KEY);
     const savedIncidents =
       loadArrayFromStorage<IncidentItem>(INCIDENTS_STORAGE_KEY);
+    const savedNames = loadArrayFromStorage<SavedPerson>(PEOPLE_STORAGE_KEY);
 
     setCases(savedCases);
+    setSavedPeople(savedNames);
+    setLocationOptions(loadLocationOptions());
 
     const normalizedIncidents = savedIncidents.map((item, index) => {
       const oldItem = item as IncidentItem & {
         location?: string;
         cityState?: string;
+        peopleInvolved?: IncidentPerson[] | string;
       };
+
+      const normalizedPeople = Array.isArray(oldItem.peopleInvolved)
+        ? oldItem.peopleInvolved
+        : oldItem.peopleInvolved
+          ? String(oldItem.peopleInvolved)
+              .split(",")
+              .map((name) => ({
+                id: createId("person"),
+                name: name.trim(),
+                role: "Unknown",
+              }))
+              .filter((person) => person.name)
+          : [];
 
       return {
         ...oldItem,
@@ -236,6 +331,7 @@ export default function IncidentsPage() {
         postalCode: oldItem.postalCode || "",
         country: oldItem.country || "",
         mapLocation: oldItem.mapLocation || "",
+        peopleInvolved: normalizedPeople,
       };
     });
 
@@ -249,6 +345,20 @@ export default function IncidentsPage() {
     );
   }, [incidents]);
 
+  useEffect(() => {
+    window.localStorage.setItem(
+      PEOPLE_STORAGE_KEY,
+      JSON.stringify(savedPeople)
+    );
+  }, [savedPeople]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      LOCATION_OPTIONS_STORAGE_KEY,
+      JSON.stringify(locationOptions)
+    );
+  }, [locationOptions]);
+
   const sortedIncidents = useMemo(() => {
     return [...incidents].sort(
       (a, b) =>
@@ -259,6 +369,56 @@ export default function IncidentsPage() {
   const selectedCase = useMemo(() => {
     return cases.find((item) => item.id === linkedCaseId) || null;
   }, [cases, linkedCaseId]);
+
+  function addPersonToIncident() {
+    setMessage("");
+
+    const cleanName = personName.trim();
+    const cleanRole = personRole.trim() || "Unknown";
+
+    if (!cleanName) {
+      setMessage("Person Name Is Required Before Adding A Person.");
+      return;
+    }
+
+    const newPerson: IncidentPerson = {
+      id: createId("incident_person"),
+      name: cleanName,
+      role: cleanRole,
+    };
+
+    setSelectedPeople((current) => [...current, newPerson]);
+
+    setSavedPeople((current) => {
+      const alreadySaved = current.some(
+        (person) => person.name.toLowerCase() === cleanName.toLowerCase()
+      );
+
+      if (alreadySaved) return current;
+
+      return [...current, { id: createId("saved_person"), name: cleanName }];
+    });
+
+    setPersonName("");
+    setPersonRole("Unknown");
+  }
+
+  function removePersonFromIncident(personId: string) {
+    setSelectedPeople((current) =>
+      current.filter((person) => person.id !== personId)
+    );
+  }
+
+  function saveLocationOptionUpdates(newIncident: IncidentItem) {
+    setLocationOptions((current) => ({
+      cities: uniqueSorted([...current.cities, newIncident.city]),
+      states: uniqueSorted([...current.states, newIncident.stateRegion]),
+      postalCodes: uniqueSorted([
+        ...current.postalCodes,
+        newIncident.postalCode,
+      ]),
+    }));
+  }
 
   function addIncident(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -277,7 +437,7 @@ export default function IncidentsPage() {
     }
 
     const newIncident: IncidentItem = {
-      id: createId(),
+      id: createId("incident"),
       incidentCode: createIncidentCode(incidents),
       title: cleanTitle,
       incidentDate: incidentDate.trim(),
@@ -294,7 +454,7 @@ export default function IncidentsPage() {
       linkedCaseTitle: selectedCase.title,
       status,
       timelineTrack,
-      peopleInvolved: peopleInvolved.trim(),
+      peopleInvolved: selectedPeople,
       sourceReference: sourceReference.trim(),
       dojReference: dojReference.trim() ? `EFTA${dojReference.trim()}` : "",
       pageNumber: pageNumber.trim(),
@@ -304,6 +464,7 @@ export default function IncidentsPage() {
     };
 
     setIncidents((current) => [newIncident, ...current]);
+    saveLocationOptionUpdates(newIncident);
 
     setLinkedCaseId("");
     setTitle("");
@@ -318,7 +479,9 @@ export default function IncidentsPage() {
 
     setStatus("needs_evidence");
     setTimelineTrack("not_ready");
-    setPeopleInvolved("");
+    setSelectedPeople([]);
+    setPersonName("");
+    setPersonRole("Unknown");
     setSourceReference("");
     setDojReference("");
     setPageNumber("");
@@ -442,11 +605,17 @@ export default function IncidentsPage() {
                     City
                   </label>
                   <input
+                    list="saved-cities"
                     value={city}
                     onChange={(event) => setCity(event.target.value)}
                     placeholder="Example: Palm Beach"
                     className="mt-2 min-h-12 w-full rounded-2xl border border-[#cfdadd] bg-white px-4 text-sm text-[#071d35] outline-none transition placeholder:text-[#7d8c98] focus:border-[#2d7374] focus:ring-4 focus:ring-[#2d7374]/10"
                   />
+                  <datalist id="saved-cities">
+                    {locationOptions.cities.map((item) => (
+                      <option key={item} value={item} />
+                    ))}
+                  </datalist>
                 </div>
 
                 <div>
@@ -454,11 +623,17 @@ export default function IncidentsPage() {
                     State / Region
                   </label>
                   <input
+                    list="saved-states"
                     value={stateRegion}
                     onChange={(event) => setStateRegion(event.target.value)}
                     placeholder="Example: Florida"
                     className="mt-2 min-h-12 w-full rounded-2xl border border-[#cfdadd] bg-white px-4 text-sm text-[#071d35] outline-none transition placeholder:text-[#7d8c98] focus:border-[#2d7374] focus:ring-4 focus:ring-[#2d7374]/10"
                   />
+                  <datalist id="saved-states">
+                    {locationOptions.states.map((item) => (
+                      <option key={item} value={item} />
+                    ))}
+                  </datalist>
                 </div>
 
                 <div>
@@ -466,11 +641,17 @@ export default function IncidentsPage() {
                     Zip / Postal Code
                   </label>
                   <input
+                    list="saved-postal-codes"
                     value={postalCode}
                     onChange={(event) => setPostalCode(event.target.value)}
                     placeholder="Example: 33480"
                     className="mt-2 min-h-12 w-full rounded-2xl border border-[#cfdadd] bg-white px-4 text-sm text-[#071d35] outline-none transition placeholder:text-[#7d8c98] focus:border-[#2d7374] focus:ring-4 focus:ring-[#2d7374]/10"
                   />
+                  <datalist id="saved-postal-codes">
+                    {locationOptions.postalCodes.map((item) => (
+                      <option key={item} value={item} />
+                    ))}
+                  </datalist>
                 </div>
 
                 <div>
@@ -570,16 +751,84 @@ export default function IncidentsPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="text-sm font-semibold text-[#071d35]">
+              <div className="rounded-3xl border border-[#d7e2e5] bg-[#f7f9fa] p-4">
+                <h3 className="text-sm font-semibold text-[#071d35]">
                   People Involved
-                </label>
-                <input
-                  value={peopleInvolved}
-                  onChange={(event) => setPeopleInvolved(event.target.value)}
-                  placeholder="Person 1, Person 2, Person 3"
-                  className="mt-2 min-h-12 w-full rounded-2xl border border-[#cfdadd] bg-white px-4 text-sm text-[#071d35] outline-none transition placeholder:text-[#7d8c98] focus:border-[#2d7374] focus:ring-4 focus:ring-[#2d7374]/10"
-                />
+                </h3>
+                <p className="mt-1 text-xs leading-5 text-[#31465a]">
+                  Add one or more people. Role can stay Unknown if the role is
+                  unclear.
+                </p>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-[1fr_0.8fr_auto]">
+                  <div>
+                    <label className="text-xs font-semibold text-[#071d35]">
+                      Saved Name Or New Name
+                    </label>
+                    <input
+                      list="saved-people"
+                      value={personName}
+                      onChange={(event) => setPersonName(event.target.value)}
+                      placeholder="Type or choose a saved name"
+                      className="mt-2 min-h-11 w-full rounded-2xl border border-[#cfdadd] bg-white px-4 text-sm text-[#071d35] outline-none transition placeholder:text-[#7d8c98] focus:border-[#2d7374] focus:ring-4 focus:ring-[#2d7374]/10"
+                    />
+                    <datalist id="saved-people">
+                      {savedPeople.map((person) => (
+                        <option key={person.id} value={person.name} />
+                      ))}
+                    </datalist>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-[#071d35]">
+                      Role
+                    </label>
+                    <select
+                      value={personRole}
+                      onChange={(event) => setPersonRole(event.target.value)}
+                      className="mt-2 min-h-11 w-full rounded-2xl border border-[#cfdadd] bg-white px-4 text-sm text-[#071d35] outline-none transition focus:border-[#2d7374] focus:ring-4 focus:ring-[#2d7374]/10"
+                    >
+                      {roleOptions.map((role) => (
+                        <option key={role} value={role}>
+                          {role}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={addPersonToIncident}
+                    className="self-end rounded-full bg-[#071d35] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0b2a4a]"
+                  >
+                    Add Person
+                  </button>
+                </div>
+
+                {selectedPeople.length ? (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {selectedPeople.map((person) => (
+                      <span
+                        key={person.id}
+                        className="inline-flex items-center gap-2 rounded-full border border-[#2d7374]/30 bg-white px-3 py-1 text-xs font-semibold text-[#31465a]"
+                      >
+                        {person.name} — {person.role}
+                        <button
+                          type="button"
+                          onClick={() => removePersonFromIncident(person.id)}
+                          className="text-[#2d7374] hover:text-[#071d35]"
+                          aria-label={`Remove ${person.name}`}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-4 text-xs text-[#31465a]">
+                    No people added to this incident yet.
+                  </p>
+                )}
               </div>
 
               <div className="grid gap-4 md:grid-cols-3">
@@ -757,6 +1006,19 @@ export default function IncidentsPage() {
                           Location: {buildLocationDisplay(item)}
                         </div>
                       </div>
+
+                      {item.peopleInvolved.length ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {item.peopleInvolved.map((person) => (
+                            <span
+                              key={person.id}
+                              className="rounded-full border border-[#d7e2e5] bg-white px-3 py-1 text-xs font-semibold text-[#31465a]"
+                            >
+                              {person.name} — {person.role}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
 
                       {item.summary ? (
                         <p className="mt-3 text-sm leading-6 text-[#31465a]">
